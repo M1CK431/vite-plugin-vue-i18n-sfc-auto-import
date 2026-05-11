@@ -1,0 +1,42 @@
+{
+  "name": "vite-plugin-vue-i18n-sfc-auto-import",
+  "version": "1.0.0",
+  "description": "Enable component-scoped i18n with Option API when using vue-i18n in composition mode",
+  "repository": "https://github.com/M1CK431/vite-plugin-vue-i18n-sfc-auto-import",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "lint": "eslint . --fix"
+  },
+  "keywords": [
+    "vite",
+    "vite-plugin",
+    "vuejs",
+    "vue-i18n",
+    "i18n",
+    "sfc"
+  ],
+  "author": "M1CK431",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.6.2",
+    "eslint": "^10.3.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12"
+  },
+  "peerDependencies": {
+    "vite": "^7.0.0 || ^8.0.0",
+    "vue": "^3.5.22",
+    "vue-i18n": "^11.0.0"
+  }
+}
