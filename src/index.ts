@@ -1,26 +1,46 @@
 import { parse } from "vue/compiler-sfc"
 
+const isObject = (obj: any): boolean => obj?.toString() === "[object Object]"
+
+const deepMerge = (obj1: any, obj2: any): any => {
+  const result = { ...obj1 }
+  for (const key in obj2) {
+    if (!Object.prototype.hasOwnProperty.call(obj2, key) || obj2[key] === undefined) continue
+    const v1 = result[key]
+    const v2 = obj2[key]
+    result[key] = isObject(v1) && isObject(v2) ? deepMerge(v1, v2) : v2
+  }
+  return result
+}
+
+const prefixMessagesKeys = (prefix: string, messages: any): any =>
+  Object.fromEntries(
+    Object.entries(messages).map(([k, v]) => [`${prefix}__${k}`, v])
+  )
+
 export const getI18nMixin = (i18n: any, url: string): object => ({
   beforeCreate(this: any) {
     const { $t } = this
 
-    const localeKeys = this.$options.__i18n.flatMap(({ locale, resource }: any) =>
-      locale
-        ? Object.keys(resource)
-        : Object.values(resource).flatMap((Object.keys as any))
-    )
-
-    const prefixMessagesKeys = (messages: any): any =>
-      Object.fromEntries(
-        Object.entries(messages).map(([k, v]) => [`${url}__${k}`, v])
-      )
-    this.$options.__i18n.forEach(({ locale, resource }: any) =>
-      locale
-        ? i18n.global.mergeLocaleMessage(locale, prefixMessagesKeys(resource))
-        : Object.entries(resource).forEach(([k, v]) =>
-          i18n.global.mergeLocaleMessage(k, prefixMessagesKeys(v as any))
+    const i18nLocaleMessages = this.$options.__i18n?.[0]
+      ? (this.$options.__i18n?.flatMap(({ locale, resource }: any) =>
+        locale
+          ? [{ locale, messages: resource }]
+          : Object.entries(resource).map(([k, v]) => ({ locale: k, messages: v }))
+      ) || [])
+      : Object.entries(
+        deepMerge(
+          this.$options.i18n?.sharedMessages || {},
+          this.$options.i18n?.messages || {}
         )
-    )
+      ).map(([locale, messages]) => ({ locale, messages }))
+
+    const localeKeys: string[] = []
+    i18nLocaleMessages.forEach(({ locale, messages }: any) => {
+      localeKeys.push(...Object.keys(messages))
+      const prefixedMessages = prefixMessagesKeys(url, messages)
+      i18n.global.mergeLocaleMessage(locale, prefixedMessages)
+    })
 
     this.$t = (key: string, ...rest: any[]) =>
       $t(localeKeys.includes(key) ? `${url}__${key}` : key, ...rest)
@@ -28,18 +48,26 @@ export const getI18nMixin = (i18n: any, url: string): object => ({
 })
 
 /**
- * Vite plugin to auto-inject i18n support into Vue SFC files with <i18n> blocks.
+ * Vite plugin to auto-inject i18n support into Vue SFC files with <i18n> blocks or i18n property in component object.
+ *
+ * Detects translations from:
+ *  - <i18n> SFC blocks (multi-locale or locale-agnostic)
+ *  - i18n property in component object: { i18n: { messages: { "en": {...}, "fr": {...} } } }
  *
  * Strategy per block combination:
  *  - <script setup> only         → append useI18n() at start of setup content
  *  - <script setup> + <script>   → leave setup intact, apply mixin on <script>
  *  - <script> only               → inject getI18nMixin via Options API mixin
  *  - no script at all            → create a <script setup> with useI18n()
+ *
+ * Note: A component must use either <i18n> OR i18n property, not both.
+ * If both are detected, the component is not transformed.
  */
 
 const vueFileRegex = /\.vue$/
 const exportDefaultRe = /export\s+default\s*\{/
 const mixinsRe = /mixins\s*:\s*\[/
+const i18nPropertyRe = /i18n\s*:\s*\{/
 
 const vueI18nSfcAutoimport = (
   globalI18nImport: string = `import { i18n } from "@/main.js";`
@@ -62,9 +90,20 @@ const vueI18nSfcAutoimport = (
         return null
       }
 
-      // Only process files with at least one <i18n> block
-      if (!descriptor.customBlocks?.some(({ type }) => type === "i18n"))
+      // Check for <i18n> block OR i18n property in component object
+      const hasI18nBlock = descriptor.customBlocks?.some(({ type }) => type === "i18n")
+      const scriptContent = descriptor.script?.content || ""
+      const hasI18nProperty = i18nPropertyRe.test(scriptContent)
+
+      if (!hasI18nBlock && !hasI18nProperty) return null
+
+      // Reject if both sources are present - user must choose one or the other
+      if (hasI18nBlock && hasI18nProperty) {
+        console.warn(
+          `[vue-i18n-sfc-autoimport] Component ${id} has both <i18n> block and i18n property. Component was NOT transformed. Please use one or the other, not both.`
+        )
         return null
+      }
 
       // Early exit: developer already handled i18n manually
       if (code.includes("useI18n(")) return null
@@ -85,8 +124,7 @@ const vueI18nSfcAutoimport = (
       // => <script setup> only
       // Prepend useI18n() at the START of the setup content (after <script setup>).
       if (hasScriptSetup && !hasScript) {
-        if (!descriptor.scriptSetup) return null
-        const insertPos = descriptor.scriptSetup.loc.start.offset
+        const insertPos = descriptor.scriptSetup?.loc.start.offset ?? 0
         return {
           code:
             code.slice(0, insertPos) +
@@ -98,9 +136,8 @@ const vueI18nSfcAutoimport = (
       // => has <script> (Options API)
       // Apply two insertions, LATER position first to avoid index drift.
 
-      if (!descriptor.script) return null
-      const scriptBodyContent = descriptor.script.content
-      const scriptContentStart = descriptor.script.loc.start.offset
+      const scriptBodyContent = descriptor.script?.content ?? ""
+      const scriptContentStart = descriptor.script?.loc.start.offset ?? 0
 
       // Locate `export default {`
       const exportMatch = scriptBodyContent.match(exportDefaultRe)

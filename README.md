@@ -6,18 +6,22 @@
 <a href="https://www.npmjs.com/package/vite-plugin-vue-i18n-sfc-auto-import" alt="NPM downloads"><img src="https://img.shields.io/npm/dw/vite-plugin-vue-i18n-sfc-auto-import?color=limegreen" ></a>
 </p>
 
-A Vite plugin that **automatically handles i18n scoping in Vue SFC components**, ensuring component-scoped translations declared in `<i18n>` blocks are properly injected when using **vue-i18n v11+ in composition mode** with the Option API. This is done at Vite code transformation step so nothing will be added in your codebase! 👻
+A Vite plugin that **automatically handles i18n scoping in Vue SFC components**, ensuring component-scoped translations are properly injected when using **vue-i18n v11+ in composition mode** with the Option API. Supports both `<i18n>` SFC blocks and the `i18n` property in the component object. This is done at Vite code transformation step so nothing will be added in your codebase! 👻
 
 ### The Problem
 
 Vue-i18n v11 introduced a deprecation warning for its "legacy" mode (enabled by default), hinting that [support will be dropped in v12](https://vue-i18n.intlify.dev/guide/essentials/started.html#component-api-style). However, this decision inadvertently creates friction for applications using Vue's **Option API**, which is [**explicitly stated to NOT be deprecated**](https://vuejs.org/guide/extras/composition-api-faq.html#will-options-api-be-deprecated) by the Vue team.
 
-The issue becomes critical when using Vue-i18n's composition mode: while `$t` remains globally available in templates and regular Option API `<script>` blocks, **component-scoped translations in `<i18n>` blocks are silently ignored**. This forces developers to either:
+The issue becomes critical when using Vue-i18n's composition mode: while `$t` remains globally available in templates and regular Option API `<script>` blocks, **component-scoped translations are silently ignored**—whether they are declared in `<i18n>` blocks or via the `i18n` option directly in the component object. In both cases, the translations simply stop working.
+
+This forces developers to either:
 
 1. **Live with the warning** until v12, then be forced to migrate all components to the Composition API
 2. **Work around it** by manually adding a `setup` hook to each affected component to inject a local i18n instance and replace all `$t()` calls with `t()`—a tedious refactoring across the entire codebase
 
-Both solutions are painful and error-prone.
+Both solutions are painful and time-consuming.
+
+On top of that, any component-scoped translations previously declared via the `i18n` option must also be relocated—either to an `<i18n>` block or to the `messages` argument of `useI18n()`—regardless of which path is taken.
 
 ### The Solution
 
@@ -110,9 +114,11 @@ No changes needed in your components. The plugin handles everything automaticall
 
 ## How it works
 
-At build time, the plugin intercepts every `.vue` file that contains at least one `<i18n>` block. It then inspects the component's script structure and applies one of the following strategies.
+At build time, the plugin intercepts every `.vue` file that contains at least one `<i18n>` block or an `i18n` property in the component object. It then inspects the component's script structure and applies one of the following strategies.
 
 > **Note:** If the file already contains a call to `useI18n()`, it is skipped entirely. This lets you handle specific components manually—with full freedom to customize the i18n setup—while the plugin transparently manages all others. In that case, managing local `<i18n>` translations is entirely your responsibility for that component.
+
+> **Important Limitation:** A component must use **either** an `<i18n>` SFC block **OR** the `i18n` property in the component object (with `messages` and/or `sharedMessages`), but **NOT** both. If both are detected, the component will not be transformed and a warning will be logged. This design choice prevents confusion and unexpected behavior from having translation sources split across multiple locations.
 
 ---
 
@@ -194,11 +200,7 @@ This approach is fully transparent: you keep using `$t("KEY")` in templates and 
 ```vue
 <script>
 export default {
-  computed: {
-    label() {
-      return this.$t("HELLO");
-    }
-  }
+  computed: { label: ({ $t }) => $t("HELLO") }
 }
 </script>
 
@@ -215,10 +217,7 @@ import { i18n } from "@/main.js";
 
 export default {
   mixins: [getI18nMixin(i18n, import.meta.url)],
-  computed: {
-    label() {
-      return this.$t("HELLO"); // transparently resolved to the local translation
-    }
+  computed: { label: ({ $t }) => $t("HELLO") } // transparently resolved to the local translation
   }
 }
 </script>
