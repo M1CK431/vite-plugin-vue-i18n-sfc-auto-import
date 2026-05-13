@@ -14,7 +14,7 @@
     "preinstall": "npx only-allow pnpm",
     "dev": "tsc --watch",
     "build": "tsc",
-    "lint": "eslint . --fix"
+    "lint": "eslint src --fix"
   },
   "keywords": [
     "vite",
