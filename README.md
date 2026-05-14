@@ -235,6 +235,10 @@ When both blocks coexist, the `<script setup>` is left untouched and the mixin s
 
 > **Note:** If you also need access to local `<i18n>` translations from within `<script setup>`, you should import and instantiate `useI18n()` manually inside it. This will cause the plugin to skip the entire component (see the note at the top of this section). In that case, you are responsible for managing local translations—including, if needed, injecting `getI18nMixin` manually in the `<script>` block the same way the plugin would have done it automatically.
 
+## Bonus feature 🎁
+
+The `i18n` option in the component object traditionally accepts either `{ messages: { ... } }` or `{ sharedMessages: { ... } }` (or both). As a convenience, **this plugin also supports passing the locale map directly**—i.e. `i18n: { "en-US": { ... }, "fr-FR": { ... } }`—without wrapping it in a `messages` key. If neither `messages` nor `sharedMessages` is detected, the object is treated as the messages map directly.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

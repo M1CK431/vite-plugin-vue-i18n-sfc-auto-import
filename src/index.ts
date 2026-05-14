@@ -18,32 +18,31 @@ const prefixMessagesKeys = (prefix: string, messages: any): any =>
     Object.entries(messages).map(([k, v]) => [`${prefix}__${k}`, v])
   )
 
-export const getI18nMixin = (i18n: any, url: string): object => ({
+export const getI18nMixin = ({ global }: any, url: string): object => ({
   beforeCreate(this: any) {
-    const { $t } = this
+    const { $t, $options: { __i18n, i18n } } = this
 
-    const i18nLocaleMessages = this.$options.__i18n?.[0]
-      ? (this.$options.__i18n?.flatMap(({ locale, resource }: any) =>
+    const i18nLocaleMessages = __i18n?.[0]
+      ? (__i18n.flatMap(({ locale, resource }: any) =>
         locale
           ? [{ locale, messages: resource }]
           : Object.entries(resource).map(([k, v]) => ({ locale: k, messages: v }))
-      ) || [])
+      ))
       : Object.entries(
-        deepMerge(
-          this.$options.i18n?.sharedMessages || {},
-          this.$options.i18n?.messages || {}
-        )
+        ('messages' in i18n || 'sharedMessages' in i18n)
+          ? deepMerge(i18n.sharedMessages ?? {}, i18n.messages ?? {})
+          : i18n
       ).map(([locale, messages]) => ({ locale, messages }))
 
-    const localeKeys: string[] = []
+    const localeKeys = new Set<string>()
     i18nLocaleMessages.forEach(({ locale, messages }: any) => {
-      localeKeys.push(...Object.keys(messages))
+      Object.keys(messages).forEach(k => localeKeys.add(k))
       const prefixedMessages = prefixMessagesKeys(url, messages)
-      i18n.global.mergeLocaleMessage(locale, prefixedMessages)
+      global.mergeLocaleMessage(locale, prefixedMessages)
     })
 
     this.$t = (key: string, ...rest: any[]) =>
-      $t(localeKeys.includes(key) ? `${url}__${key}` : key, ...rest)
+      $t(localeKeys.has(key) ? `${url}__${key}` : key, ...rest)
   }
 })
 
