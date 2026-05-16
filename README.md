@@ -27,6 +27,12 @@ On top of that, any component-scoped translations previously declared via the `i
 
 This plugin automatically injects the necessary i18n setup into your Vue components, guaranteeing that component-scoped translations work seamlessly with the Option API **when using vue-i18n v11+ in composition mode**, without console warning or breaking changes. You can continue writing Vue SFC as intended, without unnecessary refactoring.
 
+## See it in action
+
+[**URL Checker**](https://github.com/M1CK431/url-checker) is a real-world, open-source project built with Vue 3, vue-i18n and the Option API that uses this plugin. It's a self-hosted solution to detect unwanted changes across your websites' sitemaps and is fully translated in English and French—making it a great showcase of this plugin in a production-grade codebase.
+
+Feel free to browse its source code to see how everything fits together!
+
 ## Installation
 
 > **Compatibility:** This plugin was tested with Node 22+, Vite 7+, Vue 3.5+ and vue-i18n 11.
@@ -52,8 +58,6 @@ pnpm add -D vite-plugin-vue-i18n-sfc-auto-import
 ```
 
 ## Usage
-
-### Setup
 
 **Step 1 — Enable composition mode in vue-i18n**
 
