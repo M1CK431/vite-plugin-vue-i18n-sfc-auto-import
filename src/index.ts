@@ -66,7 +66,7 @@ export const getI18nMixin = ({ global }: any, url: string): object => ({
 const vueFileRegex = /\.vue$/
 const exportDefaultRe = /export\s+default\s*\{/
 const mixinsRe = /mixins\s*:\s*\[/
-const i18nPropertyRe = /i18n\s*:\s*\{/
+const i18nPropertyRe = /(?<!\S)i18n\s*:\s*\{/
 
 const vueI18nSfcAutoimport = (
   globalI18nImport: string = `import { i18n } from "@/main.js";`
